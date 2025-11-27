@@ -125,7 +125,7 @@ function saveOwnershipToStorage() {
   }
 }
 
-// --- Build Ownership UI ---
+// Build Ownership Lists
 function buildOwnershipUI() {
   const container = document.getElementById("ownershipContainer");
   if (!container) return;
@@ -159,7 +159,10 @@ function buildOwnershipUI() {
     } else {
       for (let i = 0; i < identitiesForSinner.length; i++) {
         const idn = identitiesForSinner[i];
+
         const label = document.createElement("label");
+        label.className = "ownership-item";
+
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.dataset.type = "identity";
@@ -178,7 +181,18 @@ function buildOwnershipUI() {
         });
 
         label.appendChild(checkbox);
-        label.appendChild(document.createTextNode(" " + idn.name));
+
+        if (idn.img) {
+          const img = document.createElement("img");
+          img.src = idn.img;
+          img.alt = idn.name;
+          label.appendChild(img);
+        }
+
+        const textSpan = document.createElement("span");
+        textSpan.textContent = idn.name;
+        label.appendChild(textSpan);
+
         block.appendChild(label);
       }
     }
@@ -195,7 +209,10 @@ function buildOwnershipUI() {
     } else {
       for (let j = 0; j < egosForSinner.length; j++) {
         const ego = egosForSinner[j];
+
         const labelEgo = document.createElement("label");
+        labelEgo.className = "ownership-item";
+
         const checkboxEgo = document.createElement("input");
         checkboxEgo.type = "checkbox";
         checkboxEgo.dataset.type = "ego";
@@ -214,9 +231,18 @@ function buildOwnershipUI() {
         });
 
         labelEgo.appendChild(checkboxEgo);
-        labelEgo.appendChild(
-          document.createTextNode(" [" + ego.rank + "] " + ego.name)
-        );
+
+        if (ego.img) {
+          const imgEgo = document.createElement("img");
+          imgEgo.src = ego.img;
+          imgEgo.alt = ego.name;
+          labelEgo.appendChild(imgEgo);
+        }
+
+        const textSpanEgo = document.createElement("span");
+        textSpanEgo.textContent = "[" + ego.rank + "] " + ego.name;
+        labelEgo.appendChild(textSpanEgo);
+
         block.appendChild(labelEgo);
       }
     }

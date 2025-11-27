@@ -102,3 +102,20 @@ pre {
 #saved-teams button {
   margin-top: 0.4rem;
 }
+.ownership-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.ownership-item img {
+  width: 140px;       /* tweak this size to taste */
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.ownership-item span {
+  font-size: 0.9rem;
+}
