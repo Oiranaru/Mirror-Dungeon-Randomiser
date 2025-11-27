@@ -1,38 +1,92 @@
-body {
-  font-family: sans-serif;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 1rem;
+/* Overall page background */
+html, body {
+  height: 100%;
 }
 
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 2rem 1rem;
+  background: radial-gradient(circle at top, #1e293b 0%, #020617 45%, #000000 100%);
+  color: #e5e7eb; /* light grey text */
+}
+
+/* Title */
 h1 {
   text-align: center;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #f9fafb;
 }
 
+/* Card-style sections */
 section {
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  max-width: 960px;
+  margin: 0 auto 1.5rem auto;
+  background: rgba(15, 23, 42, 0.94); /* dark slate */
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
 }
 
+/* Inputs & labels */
 label {
   display: block;
   margin: 0.5rem 0;
+  font-size: 0.95rem;
 }
 
-button {
-  margin-top: 0.5rem;
-  padding: 0.4rem 0.8rem;
-  cursor: pointer;
-}
-
-pre {
-  background: #f5f5f5;
-  padding: 0.5rem;
+input[type="number"],
+input[type="text"] {
+  background: #020617;
+  border: 1px solid #4b5563;
   border-radius: 4px;
-  white-space: pre-wrap;
+  padding: 0.25rem 0.4rem;
+  color: #e5e7eb;
 }
+
+input[type="number"]:focus,
+input[type="text"]:focus {
+  outline: none;
+  border-color: #f97316; /* orange accent */
+}
+
+/* Buttons */
+button {
+  margin-top: 0.4rem;
+  margin-right: 0.3rem;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid #4b5563;
+  background: linear-gradient(to bottom, #111827, #020617);
+  color: #e5e7eb;
+  font-size: 0.9rem;
+  transition: background 0.15s ease, transform 0.05s ease, border-color 0.15s ease;
+}
+
+button:hover {
+  background: linear-gradient(to bottom, #1f2937, #020617);
+  border-color: #f97316;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+/* Result box */
+pre {
+  background: #020617;
+  padding: 0.75rem;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  border: 1px solid #374151;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
 .hidden {
   display: none;
 }
@@ -118,4 +172,66 @@ pre {
 
 .ownership-item span {
   font-size: 0.9rem;
+}
+/* Search bar */
+#ownershipSearchBar {
+  margin: 0.5rem 0 0.75rem;
+}
+
+#ownershipSearchBar input {
+  margin-left: 0.25rem;
+}
+
+/* Collapsible sinner blocks */
+.sinner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background: #020617;               /* dark header */
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  margin-bottom: 0.3rem;
+  border: 1px solid #334155;         /* subtle border */
+}
+
+.sinner-header-name {
+  font-weight: bold;
+  color: #f9fafb;                    /* bright text */
+}
+
+.sinner-header-toggle {
+  font-size: 0.8rem;
+  color: #9ca3af;                    /* lighter grey */
+  opacity: 1;                        /* no extra fading */
+}
+
+.sinner-body {
+  margin-top: 0.25rem;
+}
+
+/* Ownership items with images */
+.ownership-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.ownership-item img {
+  width: 96px;        /* tweak if you want bigger/smaller */
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.ownership-item span {
+  font-size: 0.9rem;
+}
+
+/* Search highlighting */
+.ownership-item.search-hit {
+  background: #fff6d9;
+  outline: 1px solid #f0ad4e;
+  border-radius: 4px;
 }

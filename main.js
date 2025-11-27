@@ -143,19 +143,35 @@ function buildOwnershipUI() {
     const block = document.createElement("div");
     block.className = "sinner-block";
 
-    const title = document.createElement("h3");
-    title.textContent = sinnerName;
-    block.appendChild(title);
+    // --- HEADER (clickable, collapses/expands) ---
+    const header = document.createElement("div");
+    header.className = "sinner-header";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "sinner-header-name";
+    nameSpan.textContent = sinnerName;
+
+    const toggleSpan = document.createElement("span");
+    toggleSpan.className = "sinner-header-toggle";
+    toggleSpan.textContent = "[+]"; // collapsed by default
+
+    header.appendChild(nameSpan);
+    header.appendChild(toggleSpan);
+    block.appendChild(header);
+
+    // --- BODY (starts hidden, contains IDs & EGOs) ---
+    const body = document.createElement("div");
+    body.className = "sinner-body hidden";
 
     // Identities
     const idsHeader = document.createElement("h4");
     idsHeader.textContent = "Identities";
-    block.appendChild(idsHeader);
+    body.appendChild(idsHeader);
 
     if (identitiesForSinner.length === 0) {
       const noneText = document.createElement("p");
       noneText.textContent = "No identities defined.";
-      block.appendChild(noneText);
+      body.appendChild(noneText);
     } else {
       for (let i = 0; i < identitiesForSinner.length; i++) {
         const idn = identitiesForSinner[i];
@@ -193,19 +209,19 @@ function buildOwnershipUI() {
         textSpan.textContent = idn.name;
         label.appendChild(textSpan);
 
-        block.appendChild(label);
+        body.appendChild(label);
       }
     }
 
     // EGOs
     const egosHeader = document.createElement("h4");
     egosHeader.textContent = "EGOs";
-    block.appendChild(egosHeader);
+    body.appendChild(egosHeader);
 
     if (egosForSinner.length === 0) {
       const noneEgo = document.createElement("p");
       noneEgo.textContent = "No EGOs defined.";
-      block.appendChild(noneEgo);
+      body.appendChild(noneEgo);
     } else {
       for (let j = 0; j < egosForSinner.length; j++) {
         const ego = egosForSinner[j];
@@ -243,9 +259,23 @@ function buildOwnershipUI() {
         textSpanEgo.textContent = "[" + ego.rank + "] " + ego.name;
         labelEgo.appendChild(textSpanEgo);
 
-        block.appendChild(labelEgo);
+        body.appendChild(labelEgo);
       }
     }
+
+    block.appendChild(body);
+
+    // Toggle collapse/expand on header click
+    header.addEventListener("click", function () {
+      const isHidden = body.classList.contains("hidden");
+      if (isHidden) {
+        body.classList.remove("hidden");
+        toggleSpan.textContent = "[-]";
+      } else {
+        body.classList.add("hidden");
+        toggleSpan.textContent = "[+]";
+      }
+    });
 
     container.appendChild(block);
   }
@@ -357,6 +387,92 @@ function renderSavedTeamsList() {
   }
 }
 
+function clearOwnershipSearchHighlights() {
+  const highlighted = document.querySelectorAll(
+    "#ownershipContainer .ownership-item.search-hit"
+  );
+  for (let i = 0; i < highlighted.length; i++) {
+    highlighted[i].classList.remove("search-hit");
+  }
+}
+
+function applyOwnershipSearch() {
+  if (!ownershipSearchInput) return;
+
+  const rawQuery = ownershipSearchInput.value.trim().toLowerCase();
+  clearOwnershipSearchHighlights();
+
+  if (!rawQuery) {
+    return;
+  }
+
+  // Split query into words: "solemn yi sang" -> ["solemn", "yi", "sang"]
+  const terms = rawQuery.split(/\s+/).filter(function (t) {
+    return t.length > 0;
+  });
+
+  // Make sure the ownership list is visible
+  if (ownershipContainer && ownershipContainer.classList.contains("hidden")) {
+    ownershipContainer.classList.remove("hidden");
+  }
+
+  const items = document.querySelectorAll("#ownershipContainer .ownership-item");
+  let firstMatch = null;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+
+    // Get the sinner name from the header
+    let sinnerNameText = "";
+    const sinnerBlock = item.closest(".sinner-block");
+    if (sinnerBlock) {
+      const headerName = sinnerBlock.querySelector(".sinner-header-name");
+      if (headerName) {
+        sinnerNameText = headerName.textContent || "";
+      }
+    }
+
+    // Combine sinner name + item text
+    const combinedText =
+      (sinnerNameText + " " + item.textContent).toLowerCase();
+
+    // Check that *all* search terms are present
+    let matches = true;
+    for (let t = 0; t < terms.length; t++) {
+      if (combinedText.indexOf(terms[t]) === -1) {
+        matches = false;
+        break;
+      }
+    }
+
+    if (matches) {
+      item.classList.add("search-hit");
+      if (!firstMatch) {
+        firstMatch = item;
+      }
+    }
+  }
+
+  if (firstMatch) {
+    // Expand its sinner block
+    const sinnerBlock = firstMatch.closest(".sinner-block");
+    if (sinnerBlock) {
+      const body = sinnerBlock.querySelector(".sinner-body");
+      const toggleSpan = sinnerBlock.querySelector(".sinner-header-toggle");
+      if (body && body.classList.contains("hidden")) {
+        body.classList.remove("hidden");
+        if (toggleSpan) {
+          toggleSpan.textContent = "[-]";
+        }
+      }
+    }
+
+    if (typeof firstMatch.scrollIntoView === "function") {
+      firstMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+}
+
 // --- Hook up to the page ---
 const runResultEl = document.getElementById("runResult");
 const randomizeRunBtn = document.getElementById("randomizeRunBtn");
@@ -367,6 +483,65 @@ const toggleSettingsBtn = document.getElementById("toggleSettings");
 const ownershipContainer = document.getElementById("ownershipContainer");
 const copyResultBtn = document.getElementById("copyResultBtn");
 const resetOwnershipBtn = document.getElementById("resetOwnershipBtn");
+const selectAllIdsBtn = document.getElementById("selectAllIdsBtn");
+const selectAllEgosBtn = document.getElementById("selectAllEgosBtn");
+const selectAllOwnershipBtn = document.getElementById("selectAllOwnershipBtn");
+
+// Select ALL IDs
+if (selectAllIdsBtn) {
+  selectAllIdsBtn.addEventListener("click", function () {
+    const confirmed = window.confirm("Mark ALL Identities as owned?");
+    if (!confirmed) return;
+
+    userOwnedIdentityIds = new Set(
+      identities.map(function (idn) { return idn.id; })
+    );
+
+    saveOwnershipToStorage();
+    buildOwnershipUI();
+    alert("All IDs have been marked as owned.");
+  });
+}
+
+// Select ALL EGOs
+if (selectAllEgosBtn) {
+  selectAllEgosBtn.addEventListener("click", function () {
+    const confirmed = window.confirm("Mark ALL EGOs as owned?");
+    if (!confirmed) return;
+
+    userOwnedEgoIds = new Set(
+      egos.map(function (ego) { return ego.id; })
+    );
+
+    saveOwnershipToStorage();
+    buildOwnershipUI();
+    alert("All EGOs have been marked as owned.");
+  });
+}
+
+// Select ALL IDs + EGOs
+if (selectAllOwnershipBtn) {
+  selectAllOwnershipBtn.addEventListener("click", function () {
+    const confirmed = window.confirm("Mark ALL IDs and EGOs as owned?");
+    if (!confirmed) return;
+
+    userOwnedIdentityIds = new Set(
+      identities.map(function (idn) { return idn.id; })
+    );
+    userOwnedEgoIds = new Set(
+      egos.map(function (ego) { return ego.id; })
+    );
+
+    saveOwnershipToStorage();
+    buildOwnershipUI();
+    alert("All IDs and EGOs have been marked as owned.");
+  });
+}
+
+// NEW: search elements
+const ownershipSearchInput = document.getElementById("ownershipSearchInput");
+const ownershipSearchBtn = document.getElementById("ownershipSearchBtn");
+const ownershipClearSearchBtn = document.getElementById("ownershipClearSearchBtn");
 
 const saveTeamNameInput = document.getElementById("saveTeamName");
 const saveTeamBtn = document.getElementById("saveTeamBtn");
@@ -381,7 +556,49 @@ renderSavedTeamsList();
 // Toggle show/hide for ownership list
 if (toggleSettingsBtn && ownershipContainer) {
   toggleSettingsBtn.addEventListener("click", function () {
-    ownershipContainer.classList.toggle("hidden");
+    const isHidden = ownershipContainer.classList.contains("hidden");
+
+    if (isHidden) {
+      // Currently hidden -> show it
+      ownershipContainer.classList.remove("hidden");
+    } else {
+      // Currently visible -> hide it AND collapse all sinner sections
+      const bodies = ownershipContainer.querySelectorAll(".sinner-body");
+      const toggles = ownershipContainer.querySelectorAll(".sinner-header-toggle");
+
+      for (let i = 0; i < bodies.length; i++) {
+        bodies[i].classList.add("hidden");
+      }
+      for (let j = 0; j < toggles.length; j++) {
+        toggles[j].textContent = "[+]";
+      }
+
+      ownershipContainer.classList.add("hidden");
+    }
+  });
+}
+
+// Search buttons
+if (ownershipSearchBtn) {
+  ownershipSearchBtn.addEventListener("click", function () {
+    applyOwnershipSearch();
+  });
+}
+
+if (ownershipClearSearchBtn) {
+  ownershipClearSearchBtn.addEventListener("click", function () {
+    if (ownershipSearchInput) {
+      ownershipSearchInput.value = "";
+    }
+    clearOwnershipSearchHighlights();
+  });
+}
+
+if (ownershipSearchInput) {
+  ownershipSearchInput.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      applyOwnershipSearch();
+    }
   });
 }
 

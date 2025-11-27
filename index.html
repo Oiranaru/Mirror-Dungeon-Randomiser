@@ -35,20 +35,34 @@
   </section>
 
   <!-- Ownership settings -->
-  <section id="settings">
-    <h2>Ownership settings</h2>
-    <p>
-      Tick the Identities and EGOs you own. Base LCB Identities and base ZAYIN EGOs
-      are always available as a fallback.
-    </p>
+    <section id="settings">
+  <h2>Owned IDs/EGOs</h2>
+  <p>
+    Tick the Identities and EGOs you own. Base LCB Identities and base ZAYIN EGOs
+    are always available as a fallback.
+  </p>
 
-    <!-- These two buttons should always be visible -->
-    <button id="toggleSettings">Show / hide ownership list</button>
-    <button id="resetOwnershipBtn">Reset ownership to base only</button>
+  <div id="ownershipSearchBar">
+    <label>
+      Search IDs / EGOs:
+      <input
+        type="text"
+        id="ownershipSearchInput"
+        placeholder="e.g. Yi Sang, Solemn Lament, Lantern"
+      >
+    </label>
+    <button id="ownershipSearchBtn">Search</button>
+    <button id="ownershipClearSearchBtn">Clear search</button>
+  </div>
 
-    <!-- This div is the only part that starts hidden -->
-    <div id="ownershipContainer" class="hidden"></div>
-  </section>
+  <button id="toggleSettings">Show / hide IDs/EGOs</button>
+  <button id="resetOwnershipBtn">Reset to LCB ID/base ZAYIN EGO only</button>
+  <button id="selectAllIdsBtn">Select all IDs</button>
+  <button id="selectAllEgosBtn">Select all EGOs</button>
+  <button id="selectAllOwnershipBtn">Select all IDs/EGOs</button>
+
+  <div id="ownershipContainer" class="hidden"></div>
+</section>
 
   <!-- Saved teams -->
   <section id="saved-teams">
