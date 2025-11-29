@@ -197,13 +197,6 @@ pre {
   margin-bottom: 0.25rem;
 }
 
-.ownership-item img {
-  width: 140px;       /* tweak this size to taste */
-  height: auto;
-  border-radius: 4px;
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
-}
-
 .ownership-item span {
   font-size: 0.9rem;
 }
@@ -252,13 +245,6 @@ pre {
   margin-bottom: 0.25rem;
 }
 
-.ownership-item img {
-  width: 96px;        /* tweak if you want bigger/smaller */
-  height: auto;
-  border-radius: 4px;
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
-}
-
 .ownership-item span {
   font-size: 0.9rem;
 }
@@ -287,7 +273,7 @@ pre {
 }
 
 .ownership-item img {
-  width: 64px;
+  width: 140px;
   height: auto;
   border-radius: 4px;
 }

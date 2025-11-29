@@ -1105,3 +1105,42 @@ function isIdentityOwned(id) {
 function isEgoOwned(id) {
   return baseEgoIds.has(id) || userOwnedEgoIds.has(id);
 }
+
+// --- Dev helpers: generate templates for new IDs / EGOs in the console ---
+// These do NOT change your data automatically – they just print a ready-to-paste snippet.
+
+function devIdentityTemplate(sinnerId, shortId) {
+  // Example: sinnerId = "ryoshu", shortId = "newid"
+  // -> id "ryoshu-newid", img "img/IDs/ryoshu-newid.png"
+  const id = `${sinnerId}-${shortId}`;
+
+  const snippet = `
+{
+  id: "${id}",
+  sinnerId: "${sinnerId}",
+  name: "???",
+  img: "img/IDs/${id}.png",
+  keywords: [/* e.g. "bleed", "slash" */],
+},`;
+
+  console.log(snippet);
+}
+
+function devEgoTemplate(sinnerId, shortId, rank) {
+  // Example: sinnerId = "yi-sang", shortId = "dimension", rank = "HE"
+  // -> id "yi-sang-dimension-he", img "img/EGOs/yi-sang-dimension-he.png"
+  const rankUpper = rank.toUpperCase();
+  const id = `${sinnerId}-${shortId}-${rankUpper.toLowerCase()}`;
+
+  const snippet = `
+{
+  id: "${id}",
+  sinnerId: "${sinnerId}",
+  name: "???",
+  rank: "${rankUpper}",
+  img: "img/EGOs/${id}.png",
+  keywords: [/* e.g. "rupture", "charge" */],
+},`;
+
+  console.log(snippet);
+}
