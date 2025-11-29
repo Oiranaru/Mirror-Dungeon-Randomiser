@@ -1275,7 +1275,7 @@ if (randomizeRunBtn) {
       orderedSinners = sh;
     }
 
-    const lines = [];
+        const lines = [];
 
     for (let index = 0; index < orderedSinners.length; index++) {
       const sinner = orderedSinners[index];
@@ -1284,18 +1284,35 @@ if (randomizeRunBtn) {
       const identity = pickRandomIdentityForSinner(sinnerId);
       const egos = pickRandomEgosForSinner(sinnerId, egosPerSinner, allowedRanks);
 
-      const egoText = egos.map(function (ego) {
-        return "[" + ego.rank + "] " + ego.name;
-      }).join(", ");
-
       const slot = index + 1;
-      const role = (slot <= 7 ? "(on-field)" : "(support)");
+      const showOrderInfo = randomizeOrder;
 
-      lines.push(
-        slot + ". " + sinner.name + " " + role +
-        " – " + identity.name +
-        (egoText ? " – EGOs: " + egoText : "")
-      );
+      // Only add numbers and (on-field)/(support) when "Randomise deployment order" is ON
+      const headerPrefix = showOrderInfo ? (slot + ". ") : "";
+      const roleSuffix = showOrderInfo
+        ? (slot <= 7 ? " (on-field)" : " (support)")
+        : "";
+
+      // e.g. "1. Faust (on-field)"  OR  "Faust"
+      lines.push(headerPrefix + sinner.name + roleSuffix);
+
+      // Identity line
+      const identityName = identity && identity.name ? identity.name : "None";
+      lines.push("  Identity: " + identityName);
+
+      // EGOs block
+      lines.push("  EGOs:");
+      if (!egos || egos.length === 0) {
+        lines.push("      (No EGOs selected)");
+      } else {
+        for (let e = 0; e < egos.length; e++) {
+          const ego = egos[e];
+          lines.push("      [" + ego.rank + "] " + ego.name);
+        }
+      }
+
+      // Blank line between Sinners
+      lines.push("");
     }
 
     const resultText = lines.join("\n");
