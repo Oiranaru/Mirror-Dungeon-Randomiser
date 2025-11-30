@@ -323,6 +323,264 @@ function setupKeywordFilterCheckboxes() {
   }
 }
 
+function giftMatchesFilters(gift) {
+  if (!gift) return false;
+
+  // Search text
+  const search = egoGiftSearchInput
+    ? egoGiftSearchInput.value.trim().toLowerCase()
+    : "";
+  if (search) {
+    const name = (gift.name || "").toLowerCase();
+    if (!name.includes(search)) {
+      return false;
+    }
+  }
+
+  // Keyword filters
+  if (activeGiftKeywordFilters.size > 0) {
+    const kws = (gift.keywords || []).map(function (k) {
+      return (k || "").toLowerCase();
+    });
+
+    let anyMatch = false;
+    for (const kw of kws) {
+      if (activeGiftKeywordFilters.has(kw)) {
+        anyMatch = true;
+        break;
+      }
+    }
+    if (!anyMatch) {
+      return false;
+    }
+  }
+
+  // Hide banned gifts from the "available" list; they are shown in a separate column
+  if (bannedGiftIdsForRun.has(gift.id)) {
+    return false;
+  }
+
+  return true;
+}
+
+// --- EGO Gift grouping helpers (by keyword) ---
+const GIFT_KEYWORD_ORDER = [
+  "burn",
+  "bleed",
+  "tremor",
+  "sinking",
+  "rupture",
+  "poise",
+  "charge",
+  "slash",
+  "blunt",
+  "pierce",
+  "keywordless"
+];
+
+function normaliseGiftKeyword(kw) {
+  return (kw || "").toLowerCase();
+}
+
+function getPrimaryKeywordForGift(gift) {
+  if (!gift) return "keywordless";
+
+  const kws = Array.isArray(gift.keywords)
+    ? gift.keywords.map(normaliseGiftKeyword)
+    : [];
+
+  if (kws.length === 0) {
+    return "keywordless";
+  }
+
+  // Try to match one of our known categories in priority order
+  for (let i = 0; i < GIFT_KEYWORD_ORDER.length - 1; i++) {
+    const key = GIFT_KEYWORD_ORDER[i];
+    if (kws.indexOf(key) !== -1) {
+      return key;
+    }
+  }
+
+  // Fallback: first keyword, or keywordless
+  return kws[0] || "keywordless";
+}
+
+function getGiftKeywordLabel(keyword) {
+  if (!keyword || keyword === "keywordless") return "Keywordless";
+  return keyword.charAt(0).toUpperCase() + keyword.slice(1);
+}
+
+/**
+ * Render a list of gifts into a container, grouped into collapsible
+ * sections by primary keyword.
+ * mode: "available" | "selected" | "banned"
+ */
+function renderGiftListGroupedByKeyword(container, gifts, mode) {
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  if (!gifts || gifts.length === 0) {
+    const p = document.createElement("p");
+    p.className = "small-note";
+    p.textContent = "No EGO Gifts in this list.";
+    container.appendChild(p);
+    return;
+  }
+
+  // Group gifts by primary keyword
+  const groups = {};
+  for (let i = 0; i < gifts.length; i++) {
+    const gift = gifts[i];
+    const key = getPrimaryKeywordForGift(gift);
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(gift);
+  }
+
+  GIFT_KEYWORD_ORDER.forEach(function (keyword) {
+    const list = groups[keyword];
+    if (!list || list.length === 0) return;
+
+    list.sort(function (a, b) {
+      return a.name.localeCompare(b.name);
+    });
+
+    const block = document.createElement("div");
+    block.className = "gift-category-block";
+
+    const header = document.createElement("div");
+    header.className = "gift-category-header";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent =
+      getGiftKeywordLabel(keyword) + " (" + list.length + ")";
+
+    const toggleSpan = document.createElement("span");
+    toggleSpan.className = "gift-category-toggle";
+    toggleSpan.textContent = "[-]";
+
+    header.appendChild(nameSpan);
+    header.appendChild(toggleSpan);
+
+    const body = document.createElement("div");
+    body.className = "gift-category-body";
+
+    list.forEach(function (gift) {
+      if (mode === "banned") {
+        // Non-clickable rows for banned gifts
+        const row = document.createElement("div");
+        row.className = "gift-row banned";
+
+        if (gift.img) {
+          const img = document.createElement("img");
+          img.src = gift.img;
+          img.alt = gift.name;
+          img.className = "gift-icon";
+          row.appendChild(img);
+        }
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "gift-name";
+        textSpan.textContent = gift.name;
+        row.appendChild(textSpan);
+
+        body.appendChild(row);
+      } else {
+        // Clickable buttons for available / selected
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className =
+          "gift-row" + (mode === "selected" ? " selected" : "");
+
+        if (gift.img) {
+          const img = document.createElement("img");
+          img.src = gift.img;
+          img.alt = gift.name;
+          img.className = "gift-icon";
+          btn.appendChild(img);
+        }
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "gift-name";
+        textSpan.textContent = gift.name;
+        btn.appendChild(textSpan);
+
+        if (mode === "available") {
+          btn.title = "Click to add to current floor";
+          btn.addEventListener("click", function () {
+            currentFloorGiftIds.add(gift.id);
+            renderEgoGiftLists();
+          });
+        } else if (mode === "selected") {
+          btn.title = "Click to remove from current floor";
+          btn.addEventListener("click", function () {
+            currentFloorGiftIds.delete(gift.id);
+            renderEgoGiftLists();
+          });
+        }
+
+        body.appendChild(btn);
+      }
+    });
+
+    header.addEventListener("click", function () {
+      const isHidden = body.classList.contains("hidden");
+      if (isHidden) {
+        body.classList.remove("hidden");
+        toggleSpan.textContent = "[-]";
+      } else {
+        body.classList.add("hidden");
+        toggleSpan.textContent = "[+]";
+      }
+    });
+
+    block.appendChild(header);
+    block.appendChild(body);
+    container.appendChild(block);
+  });
+}
+
+function renderEgoGiftLists() {
+  if (!egoGiftAvailableList || !egoGiftSelectedList) return;
+
+  egoGiftAvailableList.innerHTML = "";
+  egoGiftSelectedList.innerHTML = "";
+  if (egoGiftBannedList) {
+    egoGiftBannedList.innerHTML = "";
+  }
+
+  if (!Array.isArray(egoGifts)) {
+    return; // safety if data not loaded for some reason
+  }
+
+  // Available gifts: respect search & keyword filters, exclude current-floor gifts
+  const available = egoGifts.filter(function (gift) {
+    if (!giftMatchesFilters(gift)) return false;
+    if (currentFloorGiftIds.has(gift.id)) return false;
+    return true;
+  });
+
+  renderGiftListGroupedByKeyword(egoGiftAvailableList, available, "available");
+
+  // Selected gifts (current floor)
+  const selected = egoGifts.filter(function (g) {
+    return currentFloorGiftIds.has(g.id);
+  });
+
+  renderGiftListGroupedByKeyword(egoGiftSelectedList, selected, "selected");
+
+  // Banned gifts
+  if (egoGiftBannedList) {
+    const banned = egoGifts.filter(function (g) {
+      return bannedGiftIdsForRun.has(g.id);
+    });
+
+    renderGiftListGroupedByKeyword(egoGiftBannedList, banned, "banned");
+  }
+}
+
 // Build Ownership Lists
 function buildOwnershipUI() {
   const container = document.getElementById("ownershipContainer");
@@ -730,6 +988,21 @@ let lastRunText = "";
 let savedTeams = [];
 let activeKeywordFilters = new Set();        // already used for ID/EGO keyword filters
 let savedRunPresets = [];                    // NEW: run setup presets
+// Active run / shop rules
+let runIsActive = false;
+let egoGiftRuleEnabled = false;
+let egoGiftNoReacquireRuleEnabled = false;
+let randomiseSinnersEachShopEnabled = false;
+
+// Track run settings so we can re-use them at each shop
+let activeRunSettings = null;
+
+// EGO Gift tracking for the current run
+let currentFloorGiftIds = new Set();   // gifts currently held on this floor
+let bannedGiftIdsForRun = new Set();   // gifts that cannot be re-obtained this run
+
+// Separate keyword filters for EGO Gifts
+let activeGiftKeywordFilters = new Set();
 
 function loadSavedTeamsFromStorage() {
   try {
@@ -972,6 +1245,99 @@ const selectAllOwnershipBtn = document.getElementById("selectAllOwnershipBtn");
 // NEW: run setup toggles
 const randomizeNumSinnersToggle = document.getElementById("randomizeNumSinnersToggle");
 const randomizeEgoRanksToggle = document.getElementById("randomizeEgoRanksToggle");
+
+// NEW: shop rule toggles in Run setup
+const enableGiftShopRuleCheckbox = document.getElementById("enableGiftShopRule");
+const enableGiftNoReacquireRuleCheckbox = document.getElementById("enableGiftNoReacquireRule");
+const enableRandomiseSinnersEachShopCheckbox =
+  document.getElementById("enableRandomiseSinnersEachShop");
+
+// NEW: Shop / EGO Gift tools section
+const shopToolsSection = document.getElementById("shopToolsSection");
+const egoGiftTools = document.getElementById("egoGiftTools");
+const shopSinnerTools = document.getElementById("shopSinnerTools");
+
+const egoGiftSearchInput = document.getElementById("egoGiftSearchInput");
+const egoGiftClearSearchBtn = document.getElementById("egoGiftClearSearchBtn");
+const egoGiftKeywordFiltersContainer = document.getElementById("egoGiftKeywordFilters");
+const egoGiftAvailableList = document.getElementById("egoGiftAvailableList");
+const egoGiftSelectedList = document.getElementById("egoGiftSelectedList");
+const egoGiftBannedList = document.getElementById("egoGiftBannedList");
+const shopReachedBtn = document.getElementById("shopReachedBtn");
+const runCompletedBtn = document.getElementById("runCompletedBtn");
+
+// Shop Sinner controls
+const shopRandomNumToggle = document.getElementById("shopRandomNumToggle");
+const shopNumSinnersSelect = document.getElementById("shopNumSinners");
+const randomizeShopSinnersBtn = document.getElementById("randomizeShopSinnersBtn");
+
+// EGO Gift keyword filters
+if (egoGiftKeywordFiltersContainer) {
+  const boxes = egoGiftKeywordFiltersContainer.querySelectorAll(
+    "input[type='checkbox'][data-gift-keyword]"
+  );
+  boxes.forEach(function (box) {
+    const kw = (box.dataset.giftKeyword || "").toLowerCase();
+    if (!kw) return;
+
+    box.addEventListener("change", function () {
+      if (box.checked) {
+        activeGiftKeywordFilters.add(kw);
+      } else {
+        activeGiftKeywordFilters.delete(kw);
+      }
+      renderEgoGiftLists();
+    });
+  });
+}
+
+// Gift search
+if (egoGiftSearchInput) {
+  egoGiftSearchInput.addEventListener("input", function () {
+    renderEgoGiftLists();
+  });
+}
+
+if (egoGiftClearSearchBtn) {
+  egoGiftClearSearchBtn.addEventListener("click", function () {
+    if (egoGiftSearchInput) {
+      egoGiftSearchInput.value = "";
+    }
+    renderEgoGiftLists();
+  });
+}
+
+// Gift shop rule: enable/disable "no re-obtain" checkbox
+function updateGiftRuleDependents() {
+  // Safety: if elements aren't found, do nothing
+  if (!enableGiftShopRuleCheckbox || !enableGiftNoReacquireRuleCheckbox) {
+    return;
+  }
+
+  const enabled = !!enableGiftShopRuleCheckbox.checked;
+
+  // Enable / disable the second rule
+  enableGiftNoReacquireRuleCheckbox.disabled = !enabled;
+
+  // If we turned the main rule OFF, also untick the second
+  if (!enabled) {
+    enableGiftNoReacquireRuleCheckbox.checked = false;
+  }
+
+  // Optional: toggle a "disabled" style on the label
+  const giftNoReacquireLabel = document.getElementById("giftNoReacquireLabel");
+  if (giftNoReacquireLabel) {
+    giftNoReacquireLabel.classList.toggle("disabled", !enabled);
+  }
+}
+
+// Attach listener if the first checkbox exists
+if (enableGiftShopRuleCheckbox) {
+  enableGiftShopRuleCheckbox.addEventListener("change", updateGiftRuleDependents);
+}
+
+// Set initial state on page load
+updateGiftRuleDependents();
 
 // NEW: manual Sinner selection
 const useManualSinnerSelection = document.getElementById("useManualSinnerSelection");
@@ -1227,139 +1593,294 @@ if (randomizeEgoRanksToggle) {
   updateEgoRankMode(); // initial
 }
 
+function setRunSetupEnabled(enabled) {
+  const runSetupSection = document.getElementById("runSetupSection");
+  if (!runSetupSection) return;
+
+  const controls = runSetupSection.querySelectorAll("input, select, button");
+  controls.forEach(function (el) {
+    // Don't disable the copy-result button or anything outside runSetup
+    if (el.id === "copyResultBtn") return;
+    // Shop tools live in another section, so safe.
+    el.disabled = !enabled;
+  });
+}
+
+function buildRunResultTextFromSettings(settings) {
+  if (!settings) return "";
+
+  const randomNum = !!settings.randomizeNumSinners;
+  const egosPerSinner = settings.egosPerSinner || 3;
+  const randomizeOrder = !!settings.randomizeOrder;
+  const allowedRanks = settings.allowedEgoRanks || null;
+
+  let chosenSinnerIds;
+
+  if (!randomNum) {
+    const manual = settings.manualSinnerIds || [];
+    chosenSinnerIds = manual.length > 0
+      ? manual.slice()
+      : sinners.map(function (s) { return s.id; });
+  } else {
+    let pool = settings.randomPoolIds && settings.randomPoolIds.length > 0
+      ? settings.randomPoolIds.slice()
+      : sinners.map(function (s) { return s.id; });
+
+    let num = settings.numSinners || 12;
+    if (num > pool.length) num = pool.length;
+
+    const shuffledPool = shuffle(pool);
+    chosenSinnerIds = shuffledPool.slice(0, num);
+  }
+
+  const chosenSinners = sinners.filter(function (s) {
+    return chosenSinnerIds.indexOf(s.id) !== -1;
+  });
+
+  let orderedSinners = chosenSinners.slice();
+  if (randomizeOrder && orderedSinners.length > 1) {
+    orderedSinners = shuffle(orderedSinners);
+  }
+
+  const lines = [];
+  const rankOrder = ["ZAYIN", "TETH", "HE", "WAW", "ALEPH"];
+
+  for (let index = 0; index < orderedSinners.length; index++) {
+    const sinner = orderedSinners[index];
+    const sinnerId = sinner.id;
+
+    const identity = pickRandomIdentityForSinner(sinnerId);
+    const egos = pickRandomEgosForSinner(sinnerId, egosPerSinner, allowedRanks);
+
+    const identityName = identity && identity.name ? identity.name : "None";
+
+    const slot = index + 1;
+    const showOrderInfo = randomizeOrder;
+    const headerPrefix = showOrderInfo ? (slot + ". ") : "";
+    const roleSuffix = showOrderInfo ? (slot <= 7 ? " (on-field)" : " (support)") : "";
+
+    // Header line: with or without numbering
+    lines.push(headerPrefix + sinner.name + roleSuffix);
+
+    // Identity line
+    lines.push("  Identity: " + identityName);
+
+    // EGOs block, sorted by rank
+    lines.push("  EGOs:");
+    if (!egos || egos.length === 0) {
+      lines.push("    (No EGOs selected)");
+    } else {
+      const sortedEgos = egos.slice().sort(function (a, b) {
+        const ai = rankOrder.indexOf(a.rank);
+        const bi = rankOrder.indexOf(b.rank);
+        const aRankIndex = ai === -1 ? 999 : ai;
+        const bRankIndex = bi === -1 ? 999 : bi;
+        if (aRankIndex !== bRankIndex) {
+          return aRankIndex - bRankIndex;
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+      sortedEgos.forEach(function (ego) {
+        lines.push("    [" + ego.rank + "] " + ego.name);
+      });
+    }
+
+    // Blank line between Sinners
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
 // Randomise button
 if (randomizeRunBtn) {
   randomizeRunBtn.addEventListener("click", function () {
-    const numLimitEnabled = !!(randomizeNumSinnersToggle && randomizeNumSinnersToggle.checked);
-        let egosPerSinner = parseInt(egosPerSinnerInput.value, 10) || 3;
-    if (egosPerSinner < 1) egosPerSinner = 1;
-    if (egosPerSinner > 4) egosPerSinner = 4;
-    const randomizeOrder = !!(randomizeOrderCheckbox && randomizeOrderCheckbox.checked);
-    const allowedRanks = getAllowedEgoRanks();
+    // Gather settings from the UI
+    const settings = gatherCurrentRunSettings();
 
-    let chosenSinnerIds = [];
-    const allSinnerIds = sinners.map(function (s) { return s.id; });
+    // Do we have any special shop rules?
+    const wantsGiftRule = !!(enableGiftShopRuleCheckbox && enableGiftShopRuleCheckbox.checked);
+    const wantsNoReobtain = !!(enableGiftNoReacquireRuleCheckbox && enableGiftNoReacquireRuleCheckbox.checked);
+    const wantsRandomiseEachShop =
+      !!(enableRandomiseSinnersEachShopCheckbox && enableRandomiseSinnersEachShopCheckbox.checked);
 
-    if (!numLimitEnabled) {
-      // "All 12" mode: just use everyone
-      chosenSinnerIds = allSinnerIds.slice();
-    } else {
-      // Limited 1–11 Sinner mode
-      let num = parseInt(numSinnersInput.value, 10) || 1;
+    const applyShopRules = wantsGiftRule || wantsRandomiseEachShop;
 
-      if (useManualSinnerSelection && useManualSinnerSelection.checked) {
-        // Player chooses exactly which Sinners
-        chosenSinnerIds = getManuallySelectedSinners();
-
-        if (chosenSinnerIds.length === 0) {
-          window.alert(
-            "You enabled manual Sinner selection but haven't chosen anyone yet.\n" +
-            "Either pick " + num + " Sinners or untick the manual selection option."
-          );
-          return;
-        }
-
-        if (chosenSinnerIds.length !== num) {
-          window.alert(
-            "You set the run to use " + num + " Sinners, but you selected " +
-            chosenSinnerIds.length + ".\nPlease make these match."
-          );
-          return;
-        }
-      } else {
-        // Let the randomiser pick which Sinners (from all 12)
-        if (num > allSinnerIds.length) {
-          num = allSinnerIds.length;
-        }
-
-        const shuffled = allSinnerIds.slice();
-        for (let i = shuffled.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          const tmp = shuffled[i];
-          shuffled[i] = shuffled[j];
-          shuffled[j] = tmp;
-        }
-        chosenSinnerIds = shuffled.slice(0, num);
+    if (applyShopRules) {
+      const confirmMsg =
+        "You enabled shop-related rules.\n\n" +
+        "- Run setup will be locked until you press \"Run completed\".\n" +
+        "- EGO Gifts and (optionally) Sinner re-randomisation will be tracked below.\n\n" +
+        "Start the run with these settings?";
+      const ok = window.confirm(confirmMsg);
+      if (!ok) {
+        return;
       }
     }
 
-    const chosenSinners = sinners.filter(function (s) {
-      return chosenSinnerIds.indexOf(s.id) !== -1;
-    });
-
-    let orderedSinners = chosenSinners.slice();
-    if (randomizeOrder && orderedSinners.length > 1) {
-      const sh = orderedSinners.slice();
-      for (let i = sh.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const tmp = sh[i];
-        sh[i] = sh[j];
-        sh[j] = tmp;
-      }
-      orderedSinners = sh;
-    }
-
-        const lines = [];
-
-    for (let index = 0; index < orderedSinners.length; index++) {
-      const sinner = orderedSinners[index];
-      const sinnerId = sinner.id;
-
-      const identity = pickRandomIdentityForSinner(sinnerId);
-      const egos = pickRandomEgosForSinner(sinnerId, egosPerSinner, allowedRanks);
-
-      const slot = index + 1;
-      const showOrderInfo = randomizeOrder;
-
-      // Only add numbers and (on-field)/(support) when "Randomise deployment order" is ON
-      const headerPrefix = showOrderInfo ? (slot + ". ") : "";
-      const roleSuffix = showOrderInfo
-        ? (slot <= 7 ? " (on-field)" : " (support)")
-        : "";
-
-      // e.g. "1. Faust (on-field)"  OR  "Faust"
-      lines.push(headerPrefix + sinner.name + roleSuffix);
-
-      // Identity line
-const identityName = identity && identity.name ? identity.name : "None";
-lines.push("  Identity: " + identityName);
-
-// EGOs block
-lines.push("  EGOs:");
-if (!egos || egos.length === 0) {
-  lines.push("      (No EGOs selected)");
-} else {
-  // --- sort EGOs by rank: ZAYIN < TETH < HE < WAW (then anything else) ---
-  const rankOrder = { ZAYIN: 0, TETH: 1, HE: 2, WAW: 3, ALEPH: 4 };
-
-  const sortedEgos = egos.slice().sort(function (a, b) {
-    const aVal = rankOrder[a.rank] !== undefined ? rankOrder[a.rank] : 99;
-    const bVal = rankOrder[b.rank] !== undefined ? rankOrder[b.rank] : 99;
-    if (aVal !== bVal) {
-      return aVal - bVal;
-    }
-    // tie-breaker: alphabetical by name
-    return a.name.localeCompare(b.name);
-  });
-
-  for (let e = 0; e < sortedEgos.length; e++) {
-    const ego = sortedEgos[e];
-    lines.push("      [" + ego.rank + "] " + ego.name);
-  }
-}
-
-// Blank line between Sinners
-lines.push("");
-    }
-
-    const resultText = lines.join("\n");
+    // Build and show the run result text
+    const resultText = buildRunResultTextFromSettings(settings);
     runResultEl.textContent = resultText;
     lastRunText = resultText;
 
-    // Show the "Save preset" button now that we have a concrete configuration
     if (saveRunPresetBtn) {
       saveRunPresetBtn.classList.remove("hidden");
     }
+
+    // If no special rules, we are done.
+    if (!applyShopRules) {
+      runIsActive = false;
+      activeRunSettings = null;
+      return;
+    }
+
+    // From here on, a tracked run is active
+    runIsActive = true;
+    activeRunSettings = settings;
+
+    egoGiftRuleEnabled = wantsGiftRule;
+    egoGiftNoReacquireRuleEnabled = wantsGiftRule && wantsNoReobtain;
+    randomiseSinnersEachShopEnabled = wantsRandomiseEachShop;
+
+    // Reset per-run gift state
+    currentFloorGiftIds.clear();
+    bannedGiftIdsForRun.clear();
+    activeGiftKeywordFilters.clear();
+
+    if (shopToolsSection) {
+      shopToolsSection.classList.remove("hidden");
+    }
+
+    // Show/hide the gift tools & shop Sinner tools appropriately
+    if (egoGiftTools) {
+      egoGiftTools.classList.toggle("hidden", !egoGiftRuleEnabled);
+    }
+    if (shopSinnerTools) {
+      shopSinnerTools.classList.toggle("hidden", !randomiseSinnersEachShopEnabled);
+    }
+
+    // Initialise gift lists if needed
+    if (egoGiftRuleEnabled) {
+      renderEgoGiftLists();
+    }
+
+    // Lock the Run setup so the configuration can't be changed mid-run
+    setRunSetupEnabled(false);
+
+    // Scroll to the shop tools so the user sees them
+    if (shopToolsSection && typeof shopToolsSection.scrollIntoView === "function") {
+      shopToolsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+}
+
+if (shopReachedBtn) {
+  shopReachedBtn.addEventListener("click", function () {
+    if (!runIsActive) {
+      window.alert("There is no active run to apply this to.");
+      return;
+    }
+    if (!egoGiftRuleEnabled && !randomiseSinnersEachShopEnabled) {
+      window.alert("No shop-related rules were enabled for this run.");
+      return;
+    }
+
+    const hadGifts = currentFloorGiftIds.size > 0;
+    const msg = hadGifts
+      ? "Mark shop as reached and sell ALL currently selected EGO Gifts?"
+      : "Mark shop as reached? (You currently have no gifts selected.)";
+
+    const ok = window.confirm(msg);
+    if (!ok) return;
+
+    if (egoGiftRuleEnabled && egoGiftNoReacquireRuleEnabled) {
+      // Permanently lock sold gifts for this run
+      currentFloorGiftIds.forEach(function (id) {
+        bannedGiftIdsForRun.add(id);
+      });
+    }
+
+    currentFloorGiftIds.clear();
+    if (egoGiftRuleEnabled) {
+      renderEgoGiftLists();
+    }
+
+    // Unlock Sinner re-randomiser for this shop, if that rule is on
+    if (randomiseSinnersEachShopEnabled && shopSinnerTools) {
+      shopSinnerTools.classList.remove("hidden");
+      if (shopRandomNumToggle) shopRandomNumToggle.disabled = false;
+      if (shopNumSinnersSelect) shopNumSinnersSelect.disabled = !shopRandomNumToggle.checked;
+      if (randomizeShopSinnersBtn) randomizeShopSinnersBtn.disabled = false;
+    }
+  });
+}
+
+if (randomizeShopSinnersBtn) {
+  randomizeShopSinnersBtn.addEventListener("click", function () {
+    if (!runIsActive || !randomiseSinnersEachShopEnabled || !activeRunSettings) {
+      window.alert(
+        "No active run with \"Randomise Sinners at each Shop\" enabled."
+      );
+      return;
+    }
+
+    const confirmMsg =
+      "Randomise Sinners for the current shop with the stored run settings?\n\n" +
+      "These shop randomiser controls will lock again until you click \"Shop reached\".";
+    const ok = window.confirm(confirmMsg);
+    if (!ok) return;
+
+    // Clone settings so we can adjust numSinners just for this shop
+    const shopSettings = Object.assign({}, activeRunSettings);
+
+    if (shopRandomNumToggle && shopRandomNumToggle.checked && shopNumSinnersSelect) {
+      const n = parseInt(shopNumSinnersSelect.value, 10) || shopSettings.numSinners || 12;
+      shopSettings.randomizeNumSinners = true;
+      shopSettings.numSinners = n;
+    }
+    // If toggle is off, we just reuse the run's starting count.
+
+    const resultText = buildRunResultTextFromSettings(shopSettings);
+    runResultEl.textContent = resultText;
+    lastRunText = resultText;
+
+    // Lock shop Sinner tools until next shop
+    if (shopRandomNumToggle) shopRandomNumToggle.disabled = true;
+    if (shopNumSinnersSelect) shopNumSinnersSelect.disabled = true;
+    randomizeShopSinnersBtn.disabled = true;
+  });
+}
+
+if (runCompletedBtn) {
+  runCompletedBtn.addEventListener("click", function () {
+    if (!runIsActive) {
+      window.alert("There is no active run to complete.");
+      return;
+    }
+
+    const ok = window.confirm(
+      "Mark this run as completed and unlock the Run setup?\n" +
+      "All EGO Gift tracking and shop-specific data will be cleared."
+    );
+    if (!ok) return;
+
+    runIsActive = false;
+    activeRunSettings = null;
+    egoGiftRuleEnabled = false;
+    egoGiftNoReacquireRuleEnabled = false;
+    randomiseSinnersEachShopEnabled = false;
+
+    currentFloorGiftIds.clear();
+    bannedGiftIdsForRun.clear();
+    activeGiftKeywordFilters.clear();
+
+    if (shopToolsSection) {
+      shopToolsSection.classList.add("hidden");
+    }
+
+    // Re-enable the Run setup
+    setRunSetupEnabled(true);
   });
 }
 

@@ -14,13 +14,15 @@ Unofficial fan project – not affiliated with Project Moon in any way.
 ### Run setup
 
 - Pick how many **Sinners** to bring (1–12).
-- Choose how many **EGOs per Sinner** (1–5).
+- Choose how many **EGOs per Sinner** (1–4).
 - Option to **randomise deployment order**:
   - Positions 1–7 are treated as **on-field**.
   - Positions 8–12 are **support**.
 - For each chosen Sinner:
   - Exactly **one Identity** is selected.
   - Up to 5 **EGOs** are chosen, **max one per rank** (ZAYIN / TETH / HE / WAW / ALEPH) (yes, ALEPH isn't a thing yet but it's nice to have it ready for whenever they add it...much later on...much, much later on...probably years from now).
+  - Option to sell all EGO gifts at each shop, as well as disable re-obtaining the same EGO gifts.
+  - Option to randomise Sinner IDs at each shop you come across (if you want).
 
 ---
 
@@ -30,10 +32,10 @@ Select the IDs/EGOs you actually own so the randomiser only pulls from them and 
 
 ---
 
-### Saved teams
+### Saved teams and runs
 
-- Save the **current randomised team** with a custom name.
-- View a saved team at any point (will overwrite the currently randomised team though, so be careful).
+- Save the **current randomised team** with a custom name, as well as randomised settings after they are generated.
+- View a saved team or run settings at any point (will overwrite the currently randomised team or settings though, so be careful).
 
 ---
 

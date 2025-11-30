@@ -96,34 +96,26 @@
   </p>
 </div>
 
-  <!-- EGO rank filter (only visible when the above toggle is ON) -->
-  <div id="egoRankFilterContainer" class="hidden">
-    <p>Which EGO ranks can be randomised?</p>
-    <label class="keyword-filter">
-      <input type="checkbox" data-ego-rank="ZAYIN" id="egoRankZayin" checked>
-      ZAYIN
-    </label>
-    <label class="keyword-filter">
-      <input type="checkbox" data-ego-rank="TETH" id="egoRankTeth" checked>
-      TETH
-    </label>
-    <label class="keyword-filter">
-      <input type="checkbox" data-ego-rank="HE" id="egoRankHe" checked>
-      HE
-    </label>
-    <label class="keyword-filter">
-      <input type="checkbox" data-ego-rank="WAW" id="egoRankWaw" checked>
-      WAW
-    </label>
-    <label class="keyword-filter">
-      <input type="checkbox" data-ego-rank="ALEPH" id="egoRankAleph" disabled>
-      ALEPH (not available yet)
-    </label>
-    <p class="small-note">
-      Note: each Sinner always brings exactly one ZAYIN EGO. If ZAYIN is unchecked here,
-      they will keep their base ZAYIN instead of randomising it.
-    </p>
-  </div>
+<!-- Shop rules for EGO Gifts -->
+<div class="run-field-group">
+  <label class="inline-toggle-label">
+    <input type="checkbox" id="enableGiftShopRule">
+    Enable rule of selling all EGO Gifts when reaching a shop
+  </label>
+
+  <!-- NOTE: starts disabled; JS will enable it when the first rule is on -->
+  <label class="inline-toggle-label" id="giftNoReacquireLabel">
+    <input type="checkbox" id="enableGiftNoReacquireRule" disabled>
+    Don't allow an EGO Gift to be re-obtained once sold off
+  </label>
+</div>
+
+<div class="run-field-group">
+  <label class="inline-toggle-label">
+    <input type="checkbox" id="enableRandomiseSinnersEachShop">
+    Randomise Sinners at each Shop
+  </label>
+</div>
 
   <!-- Deployment order -->
   <div class="run-field-group">
@@ -144,6 +136,143 @@
   <h3>Result</h3>
   <pre id="runResult"></pre>
   <button id="copyResultBtn">Copy result to clipboard</button>
+</section>
+
+<!-- Shop / EGO Gift tools (only visible when shop rules are enabled) -->
+<section id="shopToolsSection" class="hidden">
+  <h2>Shop / EGO Gift tools</h2>
+
+  <p class="small-note" id="shopToolsRunNotice">
+    A run is currently active with shop rules enabled. Use this panel to track
+    EGO Gifts and (optionally) re-randomise Sinners at each shop. Press
+    <strong>Run completed</strong> when you finish the run to unlock the setup again.
+  </p>
+
+  <!-- EGO Gift tools -->
+  <div id="egoGiftTools">
+    <h3>EGO Gifts for this run</h3>
+
+    <div id="egoGiftFilters">
+      <label>
+        Search by name:
+        <input type="text" id="egoGiftSearchInput" placeholder="e.g. Hex Nail, Blooming">
+      </label>
+      <button id="egoGiftClearSearchBtn">Clear search</button>
+
+      <div id="egoGiftKeywordFilters">
+        <p>Filter by keyword:</p>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="burn"> Burn
+        </label>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="bleed"> Bleed
+        </label>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="tremor"> Tremor
+        </label>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="sinking"> Sinking
+        </label>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="rupture"> Rupture
+        </label>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="poise"> Poise
+        </label>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="charge"> Charge
+        </label>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="slash"> Slash
+        </label>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="blunt"> Blunt
+        </label>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="pierce"> Pierce
+        </label>
+        <label class="keyword-filter">
+          <input type="checkbox" data-gift-keyword="keywordless"> Keywordless
+        </label>
+      </div>
+    </div>
+
+    <div id="egoGiftLists">
+      <div class="gift-list-column">
+        <h4>Available EGO Gifts</h4>
+        <p class="small-note">
+          Click a gift here to mark that you currently have it on this floor.
+        </p>
+        <div id="egoGiftAvailableList" class="gift-list"></div>
+      </div>
+
+      <div class="gift-list-column">
+        <h4>Currently selected this floor</h4>
+        <p class="small-note">
+          Click a gift again to remove it if you selected it by mistake.
+        </p>
+        <div id="egoGiftSelectedList" class="gift-list"></div>
+      </div>
+
+      <div class="gift-list-column">
+        <h4>Locked / previously sold this run</h4>
+        <p class="small-note">
+          These cannot be picked again this run when the "no re-obtain" rule is on.
+        </p>
+        <div id="egoGiftBannedList" class="gift-list"></div>
+      </div>
+    </div>
+
+    <button id="shopReachedBtn">
+      Shop reached – sell all current EGO Gifts
+    </button>
+    <p class="small-note">
+      This clears the list of current gifts. If the "no re-obtain" rule is enabled,
+      sold gifts are permanently locked for the rest of the run.
+    </p>
+  </div>
+
+  <!-- Sinner re-randomiser (only used when "Randomise Sinners at each Shop" is on) -->
+  <div id="shopSinnerTools" class="hidden">
+    <h3>Sinner re-randomiser for current shop</h3>
+    <p class="small-note">
+      These settings will lock again once
+      <strong>"Randomise Sinners for this shop"</strong> is pressed, until the next
+      time you click <strong>"Shop reached"</strong>.
+    </p>
+
+    <div class="run-field-group">
+      <label class="inline-toggle-label">
+        <input type="checkbox" id="shopRandomNumToggle" checked>
+        Randomise number of Sinners (1–11); leave unchecked to reuse run start value
+      </label>
+
+      <label>
+        <span class="field-label">How many Sinners?</span>
+        <select id="shopNumSinners">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+          <option value="11">11</option>
+        </select>
+      </label>
+    </div>
+
+    <button id="randomizeShopSinnersBtn">
+      Randomise Sinners for current shop
+    </button>
+  </div>
+
+  <button id="runCompletedBtn">
+    Run completed – unlock run setup
+  </button>
 </section>
 
 <!-- New section: saved run presets -->
