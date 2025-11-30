@@ -542,6 +542,68 @@ function renderGiftListGroupedByKeyword(container, gifts, mode) {
   });
 }
 
+// Order to display gift keyword groups
+const EGO_GIFT_KEYWORD_ORDER = [
+  "burn",
+  "bleed",
+  "tremor",
+  "sinking",
+  "rupture",
+  "poise",
+  "charge",
+  "slash",
+  "blunt",
+  "pierce",
+  "keywordless"
+];
+
+function getPrimaryGiftKeyword(gift) {
+  const kws = gift && gift.keywords ? gift.keywords : null;
+  if (kws && kws.length > 0) {
+    return (kws[0] || "").toLowerCase();
+  }
+  return "keywordless";
+}
+
+function getKeywordLabel(kw) {
+  if (!kw) return "";
+  if (kw === "keywordless") return "Keywordless";
+  return kw.charAt(0).toUpperCase() + kw.slice(1);
+}
+
+// Same as giftMatchesFilters, but WITHOUT the banned / available logic.
+// Used for the "selected" and "banned" columns.
+function giftMatchesSearchAndKeywordFilters(gift) {
+  if (!gift) return false;
+
+  const search = egoGiftSearchInput
+    ? egoGiftSearchInput.value.trim().toLowerCase()
+    : "";
+  if (search) {
+    const name = (gift.name || "").toLowerCase();
+    if (!name.includes(search)) {
+      return false;
+    }
+  }
+
+  if (activeGiftKeywordFilters.size > 0) {
+    const kws = (gift.keywords || []).map(function (k) {
+      return (k || "").toLowerCase();
+    });
+
+    let anyMatch = false;
+    for (let i = 0; i < kws.length; i++) {
+      if (activeGiftKeywordFilters.has(kws[i])) {
+        anyMatch = true;
+        break;
+      }
+    }
+    if (!anyMatch) return false;
+  }
+
+  return true;
+}
+
 function renderEgoGiftLists() {
   if (!egoGiftAvailableList || !egoGiftSelectedList) return;
 
@@ -552,32 +614,192 @@ function renderEgoGiftLists() {
   }
 
   if (!Array.isArray(egoGifts)) {
-    return; // safety if data not loaded for some reason
+    return; // safety if data not loaded
   }
 
-  // Available gifts: respect search & keyword filters, exclude current-floor gifts
-  const available = egoGifts.filter(function (gift) {
-    if (!giftMatchesFilters(gift)) return false;
-    if (currentFloorGiftIds.has(gift.id)) return false;
-    return true;
+  const search = egoGiftSearchInput
+    ? egoGiftSearchInput.value.trim().toLowerCase()
+    : "";
+  const hasSearch = !!search;
+
+  // Build groups: available + banned, and a flat list for "selected this floor"
+  const availableGroups = {};
+  const bannedGroups = {};
+  const selectedList = [];
+
+  egoGifts.forEach(function (gift) {
+    const primaryKeyword = getPrimaryGiftKeyword(gift);
+    const isSelected = currentFloorGiftIds.has(gift.id);
+    const isBanned = bannedGiftIdsForRun.has(gift.id);
+
+    // Selected column: gifts you currently have on this floor
+    if (isSelected && giftMatchesSearchAndKeywordFilters(gift)) {
+      selectedList.push(gift);
+    }
+
+    // Banned column: previously sold gifts
+    if (isBanned && giftMatchesSearchAndKeywordFilters(gift)) {
+      if (!bannedGroups[primaryKeyword]) {
+        bannedGroups[primaryKeyword] = [];
+      }
+      bannedGroups[primaryKeyword].push(gift);
+    }
+
+    // Available column: not selected, not banned, passes normal filters
+    // (uses existing giftMatchesFilters, which already respects search,
+    // keyword filters, and hides banned gifts)
+    if (!isSelected && !isBanned && giftMatchesFilters(gift)) {
+      if (!availableGroups[primaryKeyword]) {
+        availableGroups[primaryKeyword] = [];
+      }
+      availableGroups[primaryKeyword].push(gift);
+    }
   });
 
-  renderGiftListGroupedByKeyword(egoGiftAvailableList, available, "available");
+  // Helper to render keyword-grouped columns (Available / Banned)
+  function renderGroupedColumn(targetEl, groups, columnKeyPrefix, clickHandler, extraRowClass) {
+    EGO_GIFT_KEYWORD_ORDER.forEach(function (kw) {
+      const gifts = groups[kw];
+      if (!gifts || gifts.length === 0) return;
 
-  // Selected gifts (current floor)
-  const selected = egoGifts.filter(function (g) {
-    return currentFloorGiftIds.has(g.id);
+      gifts.sort(function (a, b) {
+        return a.name.localeCompare(b.name);
+      });
+
+      const stateKey = columnKeyPrefix + "|" + kw;
+
+      // Decide expanded/collapsed state:
+      // - First time (no entry in egoGiftGroupState): default to collapsed
+      // - While searching: force open groups that have matches and remember that
+      // - Otherwise: use whatever is stored in egoGiftGroupState
+      let expanded;
+      if (hasSearch) {
+        expanded = true;
+        egoGiftGroupState[stateKey] = true;
+      } else if (Object.prototype.hasOwnProperty.call(egoGiftGroupState, stateKey)) {
+        expanded = !!egoGiftGroupState[stateKey];
+      } else {
+        expanded = false; // default collapsed
+        egoGiftGroupState[stateKey] = expanded;
+      }
+
+      const groupWrapper = document.createElement("div");
+      groupWrapper.className = "ego-gift-group";
+
+      const header = document.createElement("div");
+      header.className = "ego-gift-group-header";
+
+      const titleSpan = document.createElement("span");
+      titleSpan.textContent = getKeywordLabel(kw) + " (" + gifts.length + ")";
+      header.appendChild(titleSpan);
+
+      const toggleSpan = document.createElement("span");
+      toggleSpan.className = "ego-gift-group-toggle";
+      toggleSpan.textContent = expanded ? "[-]" : "[+]";
+      header.appendChild(toggleSpan);
+
+      const body = document.createElement("div");
+      body.className = "ego-gift-group-body";
+      if (!expanded) {
+        body.style.display = "none";
+      }
+
+      gifts.forEach(function (gift) {
+        const row = document.createElement(clickHandler ? "button" : "div");
+        if (clickHandler) {
+          row.type = "button";
+        }
+        row.className = "gift-row" + (extraRowClass ? " " + extraRowClass : "");
+        row.title = gift.name;
+
+        if (gift.img) {
+          const img = document.createElement("img");
+          img.src = gift.img;
+          img.alt = gift.name;
+          img.className = "gift-icon";
+          row.appendChild(img);
+        }
+
+        const label = document.createElement("span");
+        label.textContent = gift.name;
+        row.appendChild(label);
+
+        if (clickHandler) {
+          row.addEventListener("click", function () {
+            clickHandler(gift);
+          });
+        }
+
+        body.appendChild(row);
+      });
+
+      header.addEventListener("click", function () {
+        const current = !!egoGiftGroupState[stateKey];
+        const newVal = !current;
+        egoGiftGroupState[stateKey] = newVal;
+        body.style.display = newVal ? "" : "none";
+        toggleSpan.textContent = newVal ? "[-]" : "[+]";
+      });
+
+      groupWrapper.appendChild(header);
+      groupWrapper.appendChild(body);
+      targetEl.appendChild(groupWrapper);
+    });
+  }
+
+  // 1) Available EGO Gifts (clickable -> move to "current floor")
+  renderGroupedColumn(
+    egoGiftAvailableList,
+    availableGroups,
+    "avail",
+    function (gift) {
+      currentFloorGiftIds.add(gift.id);
+      renderEgoGiftLists();
+    },
+    ""
+  );
+
+  // 2) Currently selected this floor (flat list, no groups)
+  const selectedSorted = selectedList.sort(function (a, b) {
+    return a.name.localeCompare(b.name);
   });
 
-  renderGiftListGroupedByKeyword(egoGiftSelectedList, selected, "selected");
+  selectedSorted.forEach(function (gift) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "gift-row selected";
+    btn.textContent = "";
+    btn.title = "Click to remove from current floor";
 
-  // Banned gifts
-  if (egoGiftBannedList) {
-    const banned = egoGifts.filter(function (g) {
-      return bannedGiftIdsForRun.has(g.id);
+    if (gift.img) {
+      const img = document.createElement("img");
+      img.src = gift.img;
+      img.alt = gift.name;
+      img.className = "gift-icon";
+      btn.appendChild(img);
+    }
+
+    const label = document.createElement("span");
+    label.textContent = gift.name;
+    btn.appendChild(label);
+
+    btn.addEventListener("click", function () {
+      currentFloorGiftIds.delete(gift.id);
+      renderEgoGiftLists();
     });
 
-    renderGiftListGroupedByKeyword(egoGiftBannedList, banned, "banned");
+    egoGiftSelectedList.appendChild(btn);
+  });
+
+  // 3) Locked / previously sold this run (grouped, not clickable)
+  if (egoGiftBannedList) {
+    renderGroupedColumn(
+      egoGiftBannedList,
+      bannedGroups,
+      "banned",
+      null,
+      "banned"
+    );
   }
 }
 
@@ -1003,6 +1225,9 @@ let bannedGiftIdsForRun = new Set();   // gifts that cannot be re-obtained this 
 
 // Separate keyword filters for EGO Gifts
 let activeGiftKeywordFilters = new Set();
+
+// Remember which keyword groups are expanded/collapsed in the UI
+let egoGiftGroupState = {};  // key: "avail|burn", "banned|bleed", etc. -> true/false
 
 function loadSavedTeamsFromStorage() {
   try {
@@ -1606,13 +1831,14 @@ function setRunSetupEnabled(enabled) {
   });
 }
 
-function buildRunResultTextFromSettings(settings) {
+function buildRunResultTextFromSettings(settings, omitEgos) {
   if (!settings) return "";
 
   const randomNum = !!settings.randomizeNumSinners;
   const egosPerSinner = settings.egosPerSinner || 3;
   const randomizeOrder = !!settings.randomizeOrder;
   const allowedRanks = settings.allowedEgoRanks || null;
+  const omitEgosFlag = !!omitEgos;
 
   let chosenSinnerIds;
 
@@ -1650,7 +1876,9 @@ function buildRunResultTextFromSettings(settings) {
     const sinnerId = sinner.id;
 
     const identity = pickRandomIdentityForSinner(sinnerId);
-    const egos = pickRandomEgosForSinner(sinnerId, egosPerSinner, allowedRanks);
+    const egos = omitEgosFlag
+      ? []
+      : pickRandomEgosForSinner(sinnerId, egosPerSinner, allowedRanks);
 
     const identityName = identity && identity.name ? identity.name : "None";
 
@@ -1665,25 +1893,27 @@ function buildRunResultTextFromSettings(settings) {
     // Identity line
     lines.push("  Identity: " + identityName);
 
-    // EGOs block, sorted by rank
-    lines.push("  EGOs:");
-    if (!egos || egos.length === 0) {
-      lines.push("    (No EGOs selected)");
-    } else {
-      const sortedEgos = egos.slice().sort(function (a, b) {
-        const ai = rankOrder.indexOf(a.rank);
-        const bi = rankOrder.indexOf(b.rank);
-        const aRankIndex = ai === -1 ? 999 : ai;
-        const bRankIndex = bi === -1 ? 999 : bi;
-        if (aRankIndex !== bRankIndex) {
-          return aRankIndex - bRankIndex;
-        }
-        return a.name.localeCompare(b.name);
-      });
+    // EGOs block only if we’re not omitting EGOs
+    if (!omitEgosFlag) {
+      lines.push("  EGOs:");
+      if (!egos || egos.length === 0) {
+        lines.push("    (No EGOs selected)");
+      } else {
+        const sortedEgos = egos.slice().sort(function (a, b) {
+          const ai = rankOrder.indexOf(a.rank);
+          const bi = rankOrder.indexOf(b.rank);
+          const aRankIndex = ai === -1 ? 999 : ai;
+          const bRankIndex = bi === -1 ? 999 : bi;
+          if (aRankIndex !== bRankIndex) {
+            return aRankIndex - bRankIndex;
+          }
+          return a.name.localeCompare(b.name);
+        });
 
-      sortedEgos.forEach(function (ego) {
-        lines.push("    [" + ego.rank + "] " + ego.name);
-      });
+        sortedEgos.forEach(function (ego) {
+          lines.push("    [" + ego.rank + "] " + ego.name);
+        });
+      }
     }
 
     // Blank line between Sinners
@@ -1841,9 +2071,23 @@ if (randomizeShopSinnersBtn) {
     }
     // If toggle is off, we just reuse the run's starting count.
 
-    const resultText = buildRunResultTextFromSettings(shopSettings);
+        // Build text with identities only (no EGOs) for this shop
+    const baseText = buildRunResultTextFromSettings(shopSettings, true);
+    const resultText =
+      "Sinners for this shop (identities only):\n\n" + baseText;
+
     runResultEl.textContent = resultText;
     lastRunText = resultText;
+
+    // Scroll back up to the result box so the user sees the new shop lineup
+    if (runResultEl && typeof runResultEl.scrollIntoView === "function") {
+      runResultEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // Lock shop Sinner tools until next shop
+    if (shopRandomNumToggle) shopRandomNumToggle.disabled = true;
+    if (shopNumSinnersSelect) shopNumSinnersSelect.disabled = true;
+    randomizeShopSinnersBtn.disabled = true;
 
     // Lock shop Sinner tools until next shop
     if (shopRandomNumToggle) shopRandomNumToggle.disabled = true;
