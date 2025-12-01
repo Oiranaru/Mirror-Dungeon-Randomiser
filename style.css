@@ -477,3 +477,7 @@ pre {
   flex: 1;
   text-align: left;
 }
+/* Extra spacing so "Run completed" is harder to misclick */
+.run-completed-btn {
+  margin-top: 1.25rem;
+}

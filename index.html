@@ -242,37 +242,32 @@
     </p>
 
     <div class="run-field-group">
-      <label class="inline-toggle-label">
-        <input type="checkbox" id="shopRandomNumToggle" checked>
-        Randomise number of Sinners (1–11); leave unchecked to reuse run start value
-      </label>
+  <label>
+    <span class="field-label">How many Sinners are you changing?</span>
+    <select id="shopNumSinners">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3" selected>3</option>
+    </select>
+  </label>
+</div>
 
-      <label>
-        <span class="field-label">How many Sinners?</span>
-        <select id="shopNumSinners">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5</option>
-          <option value="6">6</option>
-          <option value="7">7</option>
-          <option value="8">8</option>
-          <option value="9">9</option>
-          <option value="10">10</option>
-          <option value="11">11</option>
-        </select>
-      </label>
-    </div>
+<p class="small-note">
+  Pick up to <span id="shopSinnerLimitText">3</span> Sinners below to re-randomise their Identities for this shop.
+</p>
 
-    <button id="randomizeShopSinnersBtn">
-      Randomise Sinners for current shop
-    </button>
-  </div>
+<div id="shopSinnerSelect" class="sinner-select-grid">
+  <!-- checkboxes are injected by main.js -->
+</div>
 
-  <button id="runCompletedBtn">
-    Run completed – unlock run setup
-  </button>
+<button id="randomizeShopSinnersBtn">
+  Randomise Sinners for current shop
+</button>
+</div>
+
+<button id="runCompletedBtn" class="run-completed-btn">
+  Run completed – unlock run setup
+</button>
 </section>
 
 <!-- New section: saved run presets -->

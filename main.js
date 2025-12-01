@@ -1127,6 +1127,61 @@ function buildRunSetupSinnerCheckboxes() {
   }
 }
 
+function buildShopSinnerCheckboxes() {
+  const container = document.getElementById("shopSinnerSelect");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  for (let i = 0; i < sinners.length; i++) {
+    const sinner = sinners[i];
+
+    const label = document.createElement("label");
+    label.className = "sinner-select-item";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = sinner.id;
+    cb.className = "shop-sinner-checkbox";
+
+    cb.addEventListener("change", function () {
+      enforceShopSinnerSelectionLimit();
+    });
+
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(sinner.name));
+
+    container.appendChild(label);
+  }
+
+  enforceShopSinnerSelectionLimit();
+}
+
+function enforceShopSinnerSelectionLimit() {
+  const boxes = document.querySelectorAll(".shop-sinner-checkbox");
+  if (!boxes.length || !shopNumSinnersSelect) return;
+
+  const limit = parseInt(shopNumSinnersSelect.value, 10) || 1;
+  let checkedCount = 0;
+
+  boxes.forEach(function (box) {
+    if (box.checked) checkedCount++;
+  });
+
+  boxes.forEach(function (box) {
+    if (box.checked) {
+      box.disabled = false;
+    } else {
+      box.disabled = checkedCount >= limit;
+    }
+  });
+
+  const limitText = document.getElementById("shopSinnerLimitText");
+  if (limitText) {
+    limitText.textContent = String(limit);
+  }
+}
+
 function getManuallySelectedSinners() {
   const boxes = document.querySelectorAll(".manual-sinner-checkbox");
   const result = [];
@@ -1764,6 +1819,15 @@ buildRunSetupSinnerCheckboxes();
 updateManualSinnerHelpText();
 enforceManualSinnerSelectionLimit();
 
+// Build shop Sinner checkboxes (for per-shop identity rerolls)
+buildShopSinnerCheckboxes();
+
+if (shopNumSinnersSelect) {
+  shopNumSinnersSelect.addEventListener("change", function () {
+    enforceShopSinnerSelectionLimit();
+  });
+}
+
 // React when "select specific Sinners" is toggled
 if (useManualSinnerSelection) {
   useManualSinnerSelection.addEventListener("change", function () {
@@ -2039,59 +2103,94 @@ if (shopReachedBtn) {
     // Unlock Sinner re-randomiser for this shop, if that rule is on
     if (randomiseSinnersEachShopEnabled && shopSinnerTools) {
       shopSinnerTools.classList.remove("hidden");
-      if (shopRandomNumToggle) shopRandomNumToggle.disabled = false;
-      if (shopNumSinnersSelect) shopNumSinnersSelect.disabled = !shopRandomNumToggle.checked;
-      if (randomizeShopSinnersBtn) randomizeShopSinnersBtn.disabled = false;
+
+      if (shopNumSinnersSelect) {
+        shopNumSinnersSelect.disabled = false;
+      }
+
+      // Reset which Sinners are selected for this new shop
+      const shopBoxes = document.querySelectorAll(".shop-sinner-checkbox");
+      shopBoxes.forEach(function (box) {
+        box.checked = false;
+        box.disabled = false;
+      });
+
+      // Re-apply the 1/2/3-Sinner limit for this shop
+      enforceShopSinnerSelectionLimit();
+
+      if (randomizeShopSinnersBtn) {
+        randomizeShopSinnersBtn.disabled = false;
+      }
     }
   });
 }
 
 if (randomizeShopSinnersBtn) {
   randomizeShopSinnersBtn.addEventListener("click", function () {
-    if (!runIsActive || !randomiseSinnersEachShopEnabled || !activeRunSettings) {
+    if (!runIsActive || !randomiseSinnersEachShopEnabled) {
       window.alert(
         "No active run with \"Randomise Sinners at each Shop\" enabled."
       );
       return;
     }
 
+    const limit = shopNumSinnersSelect
+      ? parseInt(shopNumSinnersSelect.value, 10) || 1
+      : 1;
+
+    // Collect selected Sinners
+    const boxes = document.querySelectorAll(".shop-sinner-checkbox");
+    const selectedIds = [];
+    boxes.forEach(function (box) {
+      if (box.checked) {
+        selectedIds.push(box.value);
+      }
+    });
+
+    if (selectedIds.length === 0) {
+      window.alert("Please select at least one Sinner whose Identity you want to change.");
+      return;
+    }
+    if (selectedIds.length > limit) {
+      window.alert("You selected more Sinners than allowed by the dropdown.");
+      return;
+    }
+
     const confirmMsg =
-      "Randomise Sinners for the current shop with the stored run settings?\n\n" +
+      "Randomise new Identities for the selected Sinner(s) for this shop?\n\n" +
       "These shop randomiser controls will lock again until you click \"Shop reached\".";
     const ok = window.confirm(confirmMsg);
     if (!ok) return;
 
-    // Clone settings so we can adjust numSinners just for this shop
-    const shopSettings = Object.assign({}, activeRunSettings);
+    const lines = [];
+    lines.push("Sinners for this shop (new Identities only):");
+    lines.push("");
 
-    if (shopRandomNumToggle && shopRandomNumToggle.checked && shopNumSinnersSelect) {
-      const n = parseInt(shopNumSinnersSelect.value, 10) || shopSettings.numSinners || 12;
-      shopSettings.randomizeNumSinners = true;
-      shopSettings.numSinners = n;
-    }
-    // If toggle is off, we just reuse the run's starting count.
+    selectedIds.forEach(function (sinnerId) {
+      const sinner = sinners.find(function (s) { return s.id === sinnerId; });
+      const identity = pickRandomIdentityForSinner(sinnerId);
+      const sinnerName = sinner ? sinner.name : sinnerId;
+      const identityName = identity && identity.name ? identity.name : "None";
 
-        // Build text with identities only (no EGOs) for this shop
-    const baseText = buildRunResultTextFromSettings(shopSettings, true);
-    const resultText =
-      "Sinners for this shop (identities only):\n\n" + baseText;
+      lines.push(sinnerName + " – " + identityName);
+    });
 
+    const resultText = lines.join("\n");
     runResultEl.textContent = resultText;
     lastRunText = resultText;
 
-    // Scroll back up to the result box so the user sees the new shop lineup
+    // Scroll back up so the user sees the output
     if (runResultEl && typeof runResultEl.scrollIntoView === "function") {
       runResultEl.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     // Lock shop Sinner tools until next shop
-    if (shopRandomNumToggle) shopRandomNumToggle.disabled = true;
-    if (shopNumSinnersSelect) shopNumSinnersSelect.disabled = true;
-    randomizeShopSinnersBtn.disabled = true;
-
-    // Lock shop Sinner tools until next shop
-    if (shopRandomNumToggle) shopRandomNumToggle.disabled = true;
-    if (shopNumSinnersSelect) shopNumSinnersSelect.disabled = true;
+    if (shopNumSinnersSelect) {
+      shopNumSinnersSelect.disabled = true;
+    }
+    boxes.forEach(function (box) {
+      box.disabled = true;
+    });
     randomizeShopSinnersBtn.disabled = true;
   });
 }
