@@ -1193,6 +1193,18 @@ function getManuallySelectedSinners() {
   return result;
 }
 
+// Shop: get manually selected Sinners (Yi Sang, Faust, etc.)
+function getShopSelectedSinnerIds() {
+  const boxes = document.querySelectorAll(".shop-sinner-checkbox");
+  const ids = [];
+  boxes.forEach(function (box) {
+    if (box.checked) {
+      ids.push(box.value);
+    }
+  });
+  return ids;
+}
+
 function updateManualSinnerHelpText() {
   if (!manualSinnerHelpText || !numSinnersInput) return;
   const n = parseInt(numSinnersInput.value, 10) || 1;
@@ -1544,6 +1556,7 @@ const egoGiftAvailableList = document.getElementById("egoGiftAvailableList");
 const egoGiftSelectedList = document.getElementById("egoGiftSelectedList");
 const egoGiftBannedList = document.getElementById("egoGiftBannedList");
 const shopReachedBtn = document.getElementById("shopReachedBtn");
+const shopReachedSinnerOnlyBtn = document.getElementById("shopReachedSinnerOnlyBtn");
 const runCompletedBtn = document.getElementById("runCompletedBtn");
 
 // Shop Sinner controls
@@ -1895,6 +1908,63 @@ function setRunSetupEnabled(enabled) {
   });
 }
 
+// Build text for "Randomise Sinners for current shop"
+// - shopCount: 1, 2 or 3 (from the dropdown)
+// - preselectedIds: array of sinner IDs the user checked in the shop UI
+function buildShopRerollResultText(shopCount, preselectedIds) {
+  const n = Math.max(1, Math.min(3, shopCount || 1));
+
+  // All Sinner IDs we can choose from
+  const allSinnerIds = sinners.map(function (s) { return s.id; });
+
+  const chosenIdSet = new Set();
+
+  // 1) Add manually selected Sinners first (up to n)
+  (preselectedIds || []).forEach(function (id) {
+    if (chosenIdSet.size >= n) return;
+    if (allSinnerIds.indexOf(id) !== -1) {
+      chosenIdSet.add(id);
+    }
+  });
+
+  // 2) Top up with random Sinners until we reach n
+  const remainingIds = allSinnerIds.filter(function (id) {
+    return !chosenIdSet.has(id);
+  });
+
+  const needed = n - chosenIdSet.size;
+  if (needed > 0 && remainingIds.length > 0) {
+    const extra = getRandomItems(remainingIds, Math.min(needed, remainingIds.length));
+    extra.forEach(function (id) {
+      chosenIdSet.add(id);
+    });
+  }
+
+  const finalIds = Array.from(chosenIdSet);
+
+  // Keep display order stable (in the order we picked them)
+  const orderIndex = {};
+  finalIds.forEach(function (id, idx) { orderIndex[id] = idx; });
+
+  const chosenSinners = sinners
+    .filter(function (s) { return finalIds.indexOf(s.id) !== -1; })
+    .sort(function (a, b) {
+      return orderIndex[a.id] - orderIndex[b.id];
+    });
+
+  const lines = [];
+  lines.push("Shop reroll – new Identities for this shop:");
+  lines.push("");
+
+  chosenSinners.forEach(function (sinner) {
+    const identity = pickRandomIdentityForSinner(sinner.id);
+    const identityName = identity && identity.name ? identity.name : "None";
+    lines.push(sinner.name + ": " + identityName);
+  });
+
+  return lines.join("\n");
+}
+
 function buildRunResultTextFromSettings(settings, omitEgos) {
   if (!settings) return "";
 
@@ -2042,19 +2112,42 @@ if (randomizeRunBtn) {
     bannedGiftIdsForRun.clear();
     activeGiftKeywordFilters.clear();
 
+           // --- Shop UI layout depending on which rules are active ---
+
+    // Show the whole shop tools section whenever *any* shop rule is on
     if (shopToolsSection) {
       shopToolsSection.classList.remove("hidden");
     }
 
-    // Show/hide the gift tools & shop Sinner tools appropriately
+    // EGO Gift panel only makes sense when the gift rule is enabled
     if (egoGiftTools) {
       egoGiftTools.classList.toggle("hidden", !egoGiftRuleEnabled);
     }
-    if (shopSinnerTools) {
-      shopSinnerTools.classList.toggle("hidden", !randomiseSinnersEachShopEnabled);
+
+    // "Shop reached – sell all current EGO Gifts" button: only when gift rule is on
+    if (shopReachedBtn) {
+      shopReachedBtn.classList.toggle("hidden", !egoGiftRuleEnabled);
     }
 
-    // Initialise gift lists if needed
+    // Sinner-only "Shop reached – show Sinner randomise UI" button:
+    // shown when we're re-rolling Sinners at shops BUT not using the gift rule
+    const sinnerOnlyVisible = randomiseSinnersEachShopEnabled && !egoGiftRuleEnabled;
+    if (shopReachedSinnerOnlyBtn) {
+      shopReachedSinnerOnlyBtn.classList.toggle("hidden", !sinnerOnlyVisible);
+    }
+
+    // Sinner re-randomiser panel always starts hidden/locked for each shop
+    if (shopSinnerTools) {
+      shopSinnerTools.classList.add("hidden");
+    }
+    if (shopNumSinnersSelect) {
+      shopNumSinnersSelect.disabled = true;
+    }
+    if (randomizeShopSinnersBtn) {
+      randomizeShopSinnersBtn.disabled = true;
+    }
+
+    // Initialise gift lists only if the gift panel is actually in use
     if (egoGiftRuleEnabled) {
       renderEgoGiftLists();
     }
@@ -2069,25 +2162,34 @@ if (randomizeRunBtn) {
   });
 }
 
-if (shopReachedBtn) {
-  shopReachedBtn.addEventListener("click", function () {
-    if (!runIsActive) {
-      window.alert("There is no active run to apply this to.");
-      return;
-    }
-    if (!egoGiftRuleEnabled && !randomiseSinnersEachShopEnabled) {
-      window.alert("No shop-related rules were enabled for this run.");
-      return;
-    }
+// Shared "shop reached" handler used by BOTH buttons
+function onShopReachedClick() {
+  if (!runIsActive) {
+    window.alert("There is no active run to apply this to.");
+    return;
+  }
+  if (!egoGiftRuleEnabled && !randomiseSinnersEachShopEnabled) {
+    window.alert("No shop-related rules were enabled for this run.");
+    return;
+  }
 
+  // Different message depending on whether the EGO Gift rule is on
+  let msg;
+  if (egoGiftRuleEnabled) {
     const hadGifts = currentFloorGiftIds.size > 0;
-    const msg = hadGifts
+    msg = hadGifts
       ? "Mark shop as reached and sell ALL currently selected EGO Gifts?"
       : "Mark shop as reached? (You currently have no gifts selected.)";
+  } else {
+    // Sinner-only rule
+    msg = "Mark shop as reached and unlock the Sinner re-randomiser UI for this shop?";
+  }
 
-    const ok = window.confirm(msg);
-    if (!ok) return;
+  const ok = window.confirm(msg);
+  if (!ok) return;
 
+  // ----- EGO Gift handling -----
+  if (egoGiftRuleEnabled) {
     if (egoGiftRuleEnabled && egoGiftNoReacquireRuleEnabled) {
       // Permanently lock sold gifts for this run
       currentFloorGiftIds.forEach(function (id) {
@@ -2096,101 +2198,86 @@ if (shopReachedBtn) {
     }
 
     currentFloorGiftIds.clear();
-    if (egoGiftRuleEnabled) {
-      renderEgoGiftLists();
+    // Only re-render the gift lists if the gift rule is actually on
+    renderEgoGiftLists();
+  }
+
+  // ----- Sinner re-randomiser handling (this is where your 1/2/3 logic stays) -----
+  if (randomiseSinnersEachShopEnabled && shopSinnerTools) {
+    shopSinnerTools.classList.remove("hidden");
+
+    if (shopNumSinnersSelect) {
+      shopNumSinnersSelect.disabled = false;
     }
 
-    // Unlock Sinner re-randomiser for this shop, if that rule is on
-    if (randomiseSinnersEachShopEnabled && shopSinnerTools) {
-      shopSinnerTools.classList.remove("hidden");
+    // Reset which Sinners are selected for this new shop
+    const shopBoxes = document.querySelectorAll(".shop-sinner-checkbox");
+    shopBoxes.forEach(function (box) {
+      box.checked = false;
+      box.disabled = false;
+    });
 
-      if (shopNumSinnersSelect) {
-        shopNumSinnersSelect.disabled = false;
-      }
+    // Re-apply the 1/2/3-Sinner limit for this shop
+    enforceShopSinnerSelectionLimit();
 
-      // Reset which Sinners are selected for this new shop
-      const shopBoxes = document.querySelectorAll(".shop-sinner-checkbox");
-      shopBoxes.forEach(function (box) {
-        box.checked = false;
-        box.disabled = false;
-      });
-
-      // Re-apply the 1/2/3-Sinner limit for this shop
-      enforceShopSinnerSelectionLimit();
-
-      if (randomizeShopSinnersBtn) {
-        randomizeShopSinnersBtn.disabled = false;
-      }
+    if (randomizeShopSinnersBtn) {
+      randomizeShopSinnersBtn.disabled = false;
     }
-  });
+  }
+}
+
+// Attach BOTH buttons to this handler
+if (shopReachedBtn) {
+  shopReachedBtn.addEventListener("click", onShopReachedClick);
+}
+if (shopReachedSinnerOnlyBtn) {
+  shopReachedSinnerOnlyBtn.addEventListener("click", onShopReachedClick);
 }
 
 if (randomizeShopSinnersBtn) {
   randomizeShopSinnersBtn.addEventListener("click", function () {
-    if (!runIsActive || !randomiseSinnersEachShopEnabled) {
+    if (!runIsActive || !randomiseSinnersEachShopEnabled || !activeRunSettings) {
       window.alert(
-        "No active run with \"Randomise Sinners at each Shop\" enabled."
+        'No active run with "Randomise Sinners at each Shop" enabled.'
       );
       return;
     }
 
-    const limit = shopNumSinnersSelect
-      ? parseInt(shopNumSinnersSelect.value, 10) || 1
+    // How many Sinners to change (1, 2 or 3)
+    const countSelect = document.getElementById("shopNumSinners");
+    const shopCount = countSelect
+      ? parseInt(countSelect.value, 10) || 1
       : 1;
 
-    // Collect selected Sinners
-    const boxes = document.querySelectorAll(".shop-sinner-checkbox");
-    const selectedIds = [];
-    boxes.forEach(function (box) {
-      if (box.checked) {
-        selectedIds.push(box.value);
-      }
-    });
-
-    if (selectedIds.length === 0) {
-      window.alert("Please select at least one Sinner whose Identity you want to change.");
-      return;
-    }
-    if (selectedIds.length > limit) {
-      window.alert("You selected more Sinners than allowed by the dropdown.");
-      return;
-    }
+    // Sinners manually chosen by the user
+    const manualIds = getShopSelectedSinnerIds();
 
     const confirmMsg =
-      "Randomise new Identities for the selected Sinner(s) for this shop?\n\n" +
-      "These shop randomiser controls will lock again until you click \"Shop reached\".";
+      "Randomise Identities for up to " + shopCount + " Sinners?\n\n" +
+      "- You manually selected " + manualIds.length + " Sinner(s).\n" +
+      "- Any remaining slots up to " + shopCount +
+      " will be filled with random Sinners.";
     const ok = window.confirm(confirmMsg);
     if (!ok) return;
 
-    const lines = [];
-    lines.push("Sinners for this shop (new Identities only):");
-    lines.push("");
-
-    selectedIds.forEach(function (sinnerId) {
-      const sinner = sinners.find(function (s) { return s.id === sinnerId; });
-      const identity = pickRandomIdentityForSinner(sinnerId);
-      const sinnerName = sinner ? sinner.name : sinnerId;
-      const identityName = identity && identity.name ? identity.name : "None";
-
-      lines.push(sinnerName + " – " + identityName);
-    });
-
-    const resultText = lines.join("\n");
+    // Build text: top up with random Sinners if needed
+    const resultText = buildShopRerollResultText(shopCount, manualIds);
     runResultEl.textContent = resultText;
     lastRunText = resultText;
 
-    // Scroll back up so the user sees the output
-    if (runResultEl && typeof runResultEl.scrollIntoView === "function") {
+    // Scroll back up to the result box so the player sees it
+    if (typeof runResultEl.scrollIntoView === "function") {
       runResultEl.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    // Lock shop Sinner tools until next shop
+    // Lock shop Sinner tools until next "Shop reached"
+    const shopBoxes = document.querySelectorAll(".shop-sinner-checkbox");
+    shopBoxes.forEach(function (box) {
+      box.disabled = true;
+    });
     if (shopNumSinnersSelect) {
       shopNumSinnersSelect.disabled = true;
     }
-    boxes.forEach(function (box) {
-      box.disabled = true;
-    });
     randomizeShopSinnersBtn.disabled = true;
   });
 }
@@ -2221,6 +2308,9 @@ if (runCompletedBtn) {
     if (shopToolsSection) {
       shopToolsSection.classList.add("hidden");
     }
+if (shopReachedSinnerOnlyBtn) {
+  shopReachedSinnerOnlyBtn.classList.add("hidden");
+}
 
     // Re-enable the Run setup
     setRunSetupEnabled(true);

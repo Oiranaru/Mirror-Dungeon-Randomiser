@@ -155,7 +155,7 @@
     <div id="egoGiftFilters">
       <label>
         Search by name:
-        <input type="text" id="egoGiftSearchInput" placeholder="e.g. Hex Nail, Blooming">
+        <input type="text" id="egoGiftSearchInput" placeholder="e.g. Hellterfly's Dream, Ashes to Ashes etc">
       </label>
       <button id="egoGiftClearSearchBtn">Clear search</button>
 
@@ -232,6 +232,11 @@
     </p>
   </div>
 
+  <!-- Sinner-only "shop reached" button (shown when no EGO Gift rules are active) -->
+  <button id="shopReachedSinnerOnlyBtn" class="hidden">
+    Shop reached – show Sinner randomise UI
+  </button>
+
   <!-- Sinner re-randomiser (only used when "Randomise Sinners at each Shop" is on) -->
   <div id="shopSinnerTools" class="hidden">
     <h3>Sinner re-randomiser for current shop</h3>
@@ -242,32 +247,32 @@
     </p>
 
     <div class="run-field-group">
-  <label>
-    <span class="field-label">How many Sinners are you changing?</span>
-    <select id="shopNumSinners">
-      <option value="1">1</option>
-      <option value="2">2</option>
-      <option value="3" selected>3</option>
-    </select>
-  </label>
-</div>
+      <label>
+        <span class="field-label">How many Sinners are you changing?</span>
+        <select id="shopNumSinners">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+        </select>
+      </label>
+    </div>
 
-<p class="small-note">
-  Pick up to <span id="shopSinnerLimitText">3</span> Sinners below to re-randomise their Identities for this shop.
-</p>
+    <p class="small-note">
+      Pick up to <span id="shopSinnerLimitText">3</span> Sinners below to re-randomise their Identities for this shop.
+    </p>
 
-<div id="shopSinnerSelect" class="sinner-select-grid">
-  <!-- checkboxes are injected by main.js -->
-</div>
+    <div id="shopSinnerSelect" class="sinner-select-grid">
+      <!-- checkboxes are injected by main.js -->
+    </div>
 
-<button id="randomizeShopSinnersBtn">
-  Randomise Sinners for current shop
-</button>
-</div>
+    <button id="randomizeShopSinnersBtn">
+      Randomise Sinners for current shop
+    </button>
+  </div>
 
-<button id="runCompletedBtn" class="run-completed-btn">
-  Run completed – unlock run setup
-</button>
+  <button id="runCompletedBtn" class="run-completed-btn">
+    Run completed – unlock run setup
+  </button>
 </section>
 
 <!-- New section: saved run presets -->
