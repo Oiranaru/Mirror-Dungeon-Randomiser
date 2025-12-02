@@ -82,7 +82,7 @@ const sinnerIdentities = {
     { id: "ryoshu-lobotomyego", sinnerId: "ryoshu", name: "Lobotomy EGO: Red Eyes & Penitence", img: "img/IDs/ryoshu-lobotomyego.png", keywords: ["bleed", "blunt", ]},
     { id: "ryoshu-heishou", sinnerId: "ryoshu", name: "Heishou Pack - Mao Branch", img: "img/IDs/ryoshu-heishou.png", keywords: ["rupture", "slash", ]},
     { id: "ryoshu-ncorpego", sinnerId: "ryoshu", name: "N Corp. EGO: Contempt, Awe", img: "img/IDs/ryoshu-ncorpego.png", keywords: ["bleed", "tremor", "pierce", ]},
-    { id: "ryoshu-drifting", sinnerId: "Drifting Blade of Hongyuan", name: "", img: "img/IDs/ryoshu-drifting.png", keywords: ["pierce", "poise", "rupture", ], },
+    { id: "ryoshu-drifting", sinnerId: "ryoshu", name: "Drifting Blade of Hongyuan", img: "img/IDs/ryoshu-drifting.png", keywords: ["pierce", "poise", "rupture", ], },
     // Add new Ryoshu IDs here
   ],
 
