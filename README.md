@@ -1,9 +1,9 @@
-# Mirror Dungeon Randomiser (WIP)
+# Mirror Dungeon Randomiser
 
 A small web tool that randomises teams for **Limbus Company’s Mirror Dungeon**.
 
 > **Live site:**  
-> https://oiranaru.github.io/Mirror-Dungeon-Randomiser-WIP-/
+> https://oiranaru.github.io/Mirror-Dungeon-Randomiser/
 
 Unofficial fan project – not affiliated with Project Moon in any way.
 
