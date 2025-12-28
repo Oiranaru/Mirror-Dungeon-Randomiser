@@ -169,6 +169,7 @@ const sinnerIdentities = {
     { id: "rodion-bloodfiend", sinnerId: "rodion", name: "The Princess of La Manchaland", img: "img/IDs/rodion-bloodfiend.png", keywords: ["bleed", "pierce", "rupture", ]},
     { id: "rodion-heishou", sinnerId: "rodion", name: "Heishou Pack - Si Branch", img: "img/IDs/rodion-heishou.png", keywords: ["rupture", "poise", "pierce", "slash", ]},
     { id: "rodion-lobotomyego", sinnerId: "rodion", name: "Lobotomy EGO: The Sword Sharpened with Tears", img: "img/IDs/rodion-lobotomyego.png", keywords: ["sinking", "pierce", ]},
+    { id: "rodion-reindeer", sinnerId: "rodion", name: "R Corp. 4th Pack Reindeer", img: "img/IDs/rodion-reindeer.png", keywords: ["sinking", "charge"], },
     // Add new Rodion IDs here
   ],
 
